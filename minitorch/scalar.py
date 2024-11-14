@@ -29,7 +29,7 @@ class ScalarHistory:
     """`ScalarHistory` stores the history of `Function` operations that was
     used to construct the current Variable.
 
-    Attributes
+    Attributes;
     ----------
         last_fn : The last Function that was called.
         ctx : The context for that Function.
@@ -112,21 +112,25 @@ class Scalar:
         return self.history is not None and self.history.last_fn is None
 
     def is_constant(self) -> bool:
+        """Returns True if this is a constant and has no past modification."""
         return self.history is None
 
     @property
     def parents(self) -> Iterable[Variable]:
-        """Get the variables used to create this one."""
+        """Returns the inputs to a Scalar which got it to where it is now with the last function used"""
         assert self.history is not None
         return self.history.inputs
 
     def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]:
+        """Computes the chain rule of a non leaf Scalar"""
         h = self.history
         assert h is not None
         assert h.last_fn is not None
         assert h.ctx is not None
 
-        raise NotImplementedError("Need to include this file from past assignment.")
+        # TODO: Implement for Task 1.3.
+        x = h.last_fn._backward(h.ctx, d_output)
+        return list(zip(h.inputs, x))
 
     def backward(self, d_output: Optional[float] = None) -> None:
         """Calls autodiff to fill in the derivatives for the history of this object.
@@ -141,7 +145,47 @@ class Scalar:
             d_output = 1.0
         backpropagate(self, d_output)
 
-    raise NotImplementedError("Need to include this file from past assignment.")
+    # TODO: Implement for Task 1.2.
+
+    def __add__(self, b: ScalarLike) -> Scalar:
+        # +
+        return Add.apply(self, b)
+
+    def __sub__(self, b: ScalarLike) -> Scalar:
+        # -
+        return Add.apply(self, -b)
+
+    def __neg__(self) -> Scalar:
+        # *-1
+        return Neg.apply(self)
+
+    def __eq__(self, b: ScalarLike) -> Scalar:
+        # ==
+        return EQ.apply(b, self)
+
+    def __lt__(self, b: ScalarLike) -> Scalar:
+        # <
+        return LT.apply(self, b)
+
+    def __gt__(self, b: ScalarLike) -> Scalar:
+        # >
+        return LT.apply(b, self)
+
+    def log(self) -> Scalar:
+        """Apply log() to the Scalar"""
+        return Log.apply(self)
+
+    def exp(self) -> Scalar:
+        """Apply exp() to the Scalar"""
+        return Exp.apply(self)
+
+    def sigmoid(self) -> Scalar:
+        """Apply sigmoid() to the Scalar"""
+        return Sigmoid.apply(self)
+
+    def relu(self) -> Scalar:
+        """ReLU on a given Scalar"""
+        return ReLU.apply(self)
 
 
 def derivative_check(f: Any, *scalars: Scalar) -> None:
@@ -158,8 +202,8 @@ def derivative_check(f: Any, *scalars: Scalar) -> None:
     out.backward()
 
     err_msg = """
-Derivative check at arguments f(%s) and received derivative f'=%f for argument %d,
-but was expecting derivative f'=%f from central difference."""
+    Derivative check at arguments f(%s) and received derivative f'=%f for argument %d,
+    but was expecting derivative f'=%f from central difference."""
     for i, x in enumerate(scalars):
         check = central_difference(f, *scalars, arg=i)
         print(str([x.data for x in scalars]), x.derivative, i, check)

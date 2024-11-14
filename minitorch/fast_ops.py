@@ -30,9 +30,11 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """Converts the function passed in, along with any arguments given, into a jit function"""
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
+# create jit'ed versions of the previous tensor functions
 to_index = njit(to_index)
 index_to_position = njit(index_to_position)
 broadcast_index = njit(broadcast_index)
@@ -115,7 +117,7 @@ class FastOps(TensorOps):
         # Make these always be a 3 dimensional multiply
         both_2d = 0
         if len(a.shape) == 2:
-            a = a.contiguous().view(1, a.shape[0], a.shape[1])
+            a = a.contiguous().view(1, a.shape[0], a.shape[1]) # make continuous in memory and reshape dims to be 1, a.shape[0], a.shape[1]
             both_2d += 1
         if len(b.shape) == 2:
             b = b.contiguous().view(1, b.shape[0], b.shape[1])
@@ -169,7 +171,17 @@ def tensor_map(
         in_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        out_index = in_index = np.zeros(MAX_DIMS, np.int32) # these are the numpy buffers
+        x = True if in_strides == out_strides else False
+        for i in prange(len(out)):
+            to_index(i, out_shape, out_index) # get index of the i of the thread we're in (prange makes as many threads as indicated by the param)
+            if x: # if the strides are equal, then the location in storage is also equal (same stride = same amount of storage)
+                out[i] = fn(in_storage[i]) # save value
+            else:
+                broadcast_index(out_index, out_shape, in_shape, in_index) # convert the index in the out shape into the equivalent index in the in shape
+                o = index_to_position(out_index, out_strides) # get the storage indices in the respective tensors
+                j = index_to_position(in_index, in_strides)
+                out[o] = fn(in_storage[j]) # save value
 
     return njit(_map, parallel=True)  # type: ignore
 
@@ -209,7 +221,19 @@ def tensor_zip(
         b_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        out_index = a_index = b_index = np.zeros(MAX_DIMS, np.int32)
+        x = True if a_strides == b_strides == out_strides else False
+        for i in prange(len(out)):
+            to_index(i, out_shape, out_index)
+            if x:
+                out[i] = fn(a_storage[i], b_storage[i])
+            else:
+                o = index_to_position(out_index, out_strides)
+                broadcast_index(out_index, out_shape, a_shape, a_index)
+                j = index_to_position(a_index, a_strides)
+                broadcast_index(out_index, out_shape, b_shape, b_index)
+                k = index_to_position(b_index, b_strides)
+                out[o] = fn(a_storage[j], b_storage[k])
 
     return njit(_zip, parallel=True)  # type: ignore
 
@@ -245,7 +269,15 @@ def tensor_reduce(
         reduce_dim: int,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        out_index = np.zeros(MAX_DIMS, np.int32)
+        reduce_size = a_shape[reduce_dim]
+        for i in prange(len(out)):
+            to_index(i, out_shape, out_index)
+            o = index_to_position(out_index, out_strides)
+            for s in range(reduce_size):
+                out_index[reduce_dim] = s
+                j = index_to_position(out_index, a_strides)
+                out[o] = fn(out[o], a_storage[j])
 
     return njit(_reduce, parallel=True)  # type: ignore
 

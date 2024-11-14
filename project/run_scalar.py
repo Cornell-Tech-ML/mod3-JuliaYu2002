@@ -10,8 +10,15 @@ import minitorch
 
 class Network(minitorch.Module):
     def __init__(self, hidden_layers):
-        super().__init__()
-        raise NotImplementedError("Need to include this file from past assignment.")
+        super().__init__()  # gets all of the Module abilities
+        # TODO: Implement for Task 1.5.
+        self.layer1 = Linear(
+            2, hidden_layers
+        )  # input is 1, output is # of hidden layers
+        self.layer2 = Linear(
+            hidden_layers, hidden_layers
+        )  # input is same as prev layer output
+        self.layer3 = Linear(hidden_layers, 1)
 
     def forward(self, x):
         middle = [h.relu() for h in self.layer1.forward(x)]
@@ -25,9 +32,11 @@ class Linear(minitorch.Module):
         self.weights = []
         self.bias = []
         for i in range(in_size):
-            self.weights.append([])
+            self.weights.append([])  # append an empty list to the weights list
             for j in range(out_size):
-                self.weights[i].append(
+                self.weights[
+                    i
+                ].append(  # add things into the empty list placed in the list of weights
                     self.add_parameter(
                         f"weight_{i}_{j}", minitorch.Scalar(2 * (random.random() - 0.5))
                     )
@@ -39,11 +48,20 @@ class Linear(minitorch.Module):
                 )
             )
 
-    def forward(self, inputs):
-        raise NotImplementedError("Need to include this file from past assignment.")
+    def forward(self, inputs):  # returns an iterable
+        # TODO: Implement for Task 1.5.
+        adjusted_inputs = []
+        # weights: outer surrounding array: number of inputs, inner arrays: number of inputs to be applied to the current input
+        # bias: corresponding to be added to each sum of weights * input
+        # bias: [..., ..., ...]. inputs: [..., ..., ...]. weights: [[..., ..., ...], [..., ..., ...], ...]
+        y = [b.value for b in self.bias]
+        for i, x in enumerate(inputs):
+            for j in range(len(y)):
+                y[j] = y[j] + x * self.weights[i][j].value
+        return y
 
 
-def default_log_fn(epoch, total_loss, correct, losses):
+def default_log_fn(epoch, total_loss, correct, losses):  # print info to terminal
     print("Epoch ", epoch, " loss ", total_loss, "correct", correct)
 
 
@@ -94,7 +112,7 @@ class ScalarTrain:
             optim.step()
 
             # Logging
-            if epoch % 10 == 0 or epoch == max_epochs:
+            if epoch % 10 == 0 or epoch == max_epochs:  # every 10 or the last epoch
                 log_fn(epoch, total_loss, correct, losses)
 
 
