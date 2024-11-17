@@ -11,6 +11,7 @@ from .tensor_data import (
     broadcast_index,
     index_to_position,
     shape_broadcast,
+    strides_from_shape,
     to_index,
 )
 from .tensor_ops import MapProto, TensorOps
@@ -171,13 +172,14 @@ def tensor_map(
         in_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        out_index = in_index = np.zeros(MAX_DIMS, np.int32) # these are the numpy buffers
-        x = True if in_strides == out_strides else False
+        x = np.array_equal(in_strides, out_strides) and np.array_equal(in_shape, out_shape)
         for i in prange(len(out)):
-            to_index(i, out_shape, out_index) # get index of the i of the thread we're in (prange makes as many threads as indicated by the param)
-            if x: # if the strides are equal, then the location in storage is also equal (same stride = same amount of storage)
+            out_index = np.empty(MAX_DIMS, np.int32)
+            in_index = np.empty(MAX_DIMS, np.int32) # these are the numpy buffers
+            if x: # strides and shape aligned
                 out[i] = fn(in_storage[i]) # save value
             else:
+                to_index(i, out_shape, out_index) # get index of the i of the thread we're in (prange makes as many threads as indicated by the param)
                 broadcast_index(out_index, out_shape, in_shape, in_index) # convert the index in the out shape into the equivalent index in the in shape
                 o = index_to_position(out_index, out_strides) # get the storage indices in the respective tensors
                 j = index_to_position(in_index, in_strides)
@@ -221,13 +223,17 @@ def tensor_zip(
         b_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        out_index = a_index = b_index = np.zeros(MAX_DIMS, np.int32)
-        x = True if a_strides == b_strides == out_strides else False
+        x = np.array_equal(a_strides, b_strides) and np.array_equal(a_strides, out_strides) \
+            and np.array_equal(b_strides, out_strides) and np.array_equal(a_shape, b_shape) \
+                and np.array_equal(a_shape, out_shape) and np.array_equal(b_shape, out_shape)
         for i in prange(len(out)):
-            to_index(i, out_shape, out_index)
+            out_index = np.empty(MAX_DIMS, np.int32)
+            a_index = np.empty(MAX_DIMS, np.int32)
+            b_index = np.empty(MAX_DIMS, np.int32)
             if x:
-                out[i] = fn(a_storage[i], b_storage[i])
+                out[i] = fn(a_storage[i], b_storage[i]) # if aligned, directly fill in out at i
             else:
+                to_index(i, out_shape, out_index)
                 o = index_to_position(out_index, out_strides)
                 broadcast_index(out_index, out_shape, a_shape, a_index)
                 j = index_to_position(a_index, a_strides)
@@ -269,15 +275,16 @@ def tensor_reduce(
         reduce_dim: int,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        out_index = np.zeros(MAX_DIMS, np.int32)
         reduce_size = a_shape[reduce_dim]
         for i in prange(len(out)):
+            out_index = np.empty(MAX_DIMS, np.int32)
             to_index(i, out_shape, out_index)
             o = index_to_position(out_index, out_strides)
+            j = index_to_position(out_index, a_strides)
             for s in range(reduce_size):
                 out_index[reduce_dim] = s
-                j = index_to_position(out_index, a_strides)
                 out[o] = fn(out[o], a_storage[j])
+                j += a_strides[reduce_dim]
 
     return njit(_reduce, parallel=True)  # type: ignore
 

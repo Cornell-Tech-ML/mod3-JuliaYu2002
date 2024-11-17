@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import enum
 import random
 from typing import Iterable, Optional, Sequence, Tuple, Union
 
