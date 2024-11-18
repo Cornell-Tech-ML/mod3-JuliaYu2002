@@ -217,3 +217,132 @@ before the loop is executed and reused inside the loop):
    Allocation:: out_index = np.empty(MAX_DIMS, np.int32)
     - numpy.empty() is used for the allocation.
 None
+
+3.2 parallel analysis script output:
+MATRIX MULTIPLY
+ 
+================================================================================
+ Parallel Accelerator Optimizing:  Function _tensor_matrix_multiply,
+C:\Users\rubyj\Documents\Cornell_Tech\MLE\mod3-JuliaYu2002\minitorch\fast_ops.py
+ (292)
+================================================================================
+
+
+Parallel loop listing for  Function _tensor_matrix_multiply, C:\Users\rubyj\Documents\Cornell_Tech\MLE\mod3-JuliaYu2002\minitorch\fast_ops.py (292)
+------------------------------------------------------------------------------------------------------------------------------|loop #ID
+def _tensor_matrix_multiply(                                                                                                  |
+    out: Storage,                                                                                                             |
+    out_shape: Shape,                                                                                                         |
+    out_strides: Strides,                                                                                                     |
+    a_storage: Storage,                                                                                                       |
+    a_shape: Shape,                                                                                                           |
+    a_strides: Strides,                                                                                                       |
+    b_storage: Storage,                                                                                                       |
+    b_shape: Shape,                                                                                                           |
+    b_strides: Strides,                                                                                                       |
+) -> None:                                                                                                                    |
+    """NUMBA tensor matrix multiply function.                                                                                 |
+                                                                                                                              |
+    Should work for any tensor shapes that broadcast as long as                                                               |
+                                                                                                                              |
+    ```                                                                                                                       |
+    assert a_shape[-1] == b_shape[-2]                                                                                         |
+    ```                                                                                                                       |
+                                                                                                                              |
+    Optimizations:                                                                                                            |
+                                                                                                                              |
+    * Outer loop in parallel                                                                                                  |
+    * No index buffers or function calls                                                                                      |
+    * Inner loop should have no global writes, 1 multiply.                                                                    |
+                                                                                                                              |
+                                                                                                                              |
+    Args:                                                                                                                     |
+    ----                                                                                                                      |
+        out (Storage): storage for `out` tensor                                                                               |
+        out_shape (Shape): shape for `out` tensor                                                                             |
+        out_strides (Strides): strides for `out` tensor                                                                       |
+        a_storage (Storage): storage for `a` tensor                                                                           |
+        a_shape (Shape): shape for `a` tensor                                                                                 |
+        a_strides (Strides): strides for `a` tensor                                                                           |
+        b_storage (Storage): storage for `b` tensor                                                                           |
+        b_shape (Shape): shape for `b` tensor                                                                                 |
+        b_strides (Strides): strides for `b` tensor                                                                           |
+                                                                                                                              |
+    Returns:                                                                                                                  |
+    -------                                                                                                                   |
+        None : Fills in `out`                                                                                                 |
+                                                                                                                              |
+    """                                                                                                                       |
+    a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0 # if the tensor was already a 3d tensor before view adjustment     |
+    b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0 # the number to get to the next depth in storage                   |
+    # TODO: Implement for Task 3.2.                                                                                           |
+                                                                                                                              |
+    # deeper = a_shape[0] if (a_shape[0] >= b_shape[0]) else b_shape[0]                                                       |
+    # a_shape[-1] = b_shape[-2] :: a's # columns must equal b's # rows                                                        |
+    for out_pos in prange(len(out)):------------------------------------------------------------------------------------------| #3
+        # getCol = int(out_pos % out_shape[2])                                                                                |
+        # cur_ord = out_pos // out_shape[2]                                                                                   |
+        # getRow = int(cur_ord % out_shape[1])                                                                                |
+        # cur_ord = cur_ord // out_shape[0]                                                                                   |
+        # getDepth = int(out_pos % out_shape[0])                                                                              |
+                                                                                                                              |
+        # the uncommented things below are from chat gpt after being fed the rest of the commented out code I have here       |
+        batch_idx = (out_pos // out_strides[0]) % out_shape[0]                                                                |
+        row_idx = (out_pos // out_strides[1]) % out_shape[1]                                                                  |
+        col_idx = (out_pos // out_strides[2]) % out_shape[2]                                                                  |
+        # ..., depth, row, col                                                                                                |
+        dot_prod = 0                                                                                                          |
+        for k in range(a_shape[-1]):  # Shared dimension                                                                      |
+            a_idx = (                                                                                                         |
+                batch_idx * a_batch_stride +                                                                                  |
+                row_idx * a_strides[-2] +                                                                                     |
+                k * a_strides[-1]                                                                                             |
+            )                                                                                                                 |
+            b_idx = (                                                                                                         |
+                batch_idx * b_batch_stride +                                                                                  |
+                k * b_strides[-2] +                                                                                           |
+                col_idx * b_strides[-1]                                                                                       |
+            )                                                                                                                 |
+            dot_prod += a_storage[a_idx] * b_storage[b_idx]                                                                   |
+                                                                                                                              |
+        # Write to output storage                                                                                             |
+        out[out_pos] = dot_prod                                                                                               |
+                                                                                                                              |
+        # for i in range(a_shape[-2]):                                                                                        |
+        #     dot_prod = 0                                                                                                    |
+        #     for j in range(b_shape[-1]):                                                                                    |
+        #         if i == getRow and j == getCol:                                                                             |
+        #             dot_prod += a_storage[getDepth * a_batch_stride + i * a_strides[-2] + j * a_strides[-1]] * \            |
+        #                 b_storage[getDepth * b_batch_stride + j * b_strides[-1] + i * b_strides[-2]]                        |
+        #     out[out_pos] = dot_prod                                                                                         |
+        # for depth in range(deeper):                                                                                         |
+        #     dot = 0                                                                                                         |
+        #     if getDepth == depth:                                                                                           |
+        #         for row in range(a_shape[-2]): # loop over a's rows                                                         |
+        #             if row == getRow:                                                                                       |
+        #                 for col in range(b_shape[-1]): # loop over b's columns                                              |
+        #                     if col == getCol:                                                                               |
+        #                     # if col == getCol and row == getRow and depth == getDepth:                                     |
+        #                         dot += a_storage[depth * a_batch_stride + row * a_strides[-2] + col * a_strides[-1]] * \    |
+        #                             b_storage[depth * b_batch_stride + col * b_strides[-1] + row * b_strides[-2]]           |
+            # out[out_pos] = dot                                                                                              |
+    # print(a_storage, a_shape)                                                                                               |
+    # print(b_storage, b_shape)                                                                                               |
+    # print(out, out_shape)                                                                                                   |
+    # print()                                                                                                                 |
+--------------------------------- Fusing loops ---------------------------------
+Attempting fusion of parallel loops (combines loops with similar properties)...
+Following the attempted fusion of parallel for-loops there are 1 parallel for-
+loop(s) (originating from loops labelled: #3).
+--------------------------------------------------------------------------------
+----------------------------- Before Optimisation ------------------------------
+--------------------------------------------------------------------------------
+------------------------------ After Optimisation ------------------------------
+Parallel structure is already optimal.
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+---------------------------Loop invariant code motion---------------------------
+Allocation hoisting:
+No allocation hoisting found
+None
