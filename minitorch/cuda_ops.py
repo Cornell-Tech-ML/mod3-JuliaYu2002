@@ -235,7 +235,6 @@ def tensor_zip(
             broadcast_index(out_index, out_shape, b_shape, b_index)
             k = index_to_position(b_index, b_strides)
             out[o] = fn(a_storage[j], b_storage[k])
-            # print(i, out[o])
 
     return cuda.jit()(_zip)  # type: ignore
 
@@ -273,11 +272,11 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
     if i < size:
         cache[pos] = a[i] # move things into shared memory
         cuda.syncthreads()
-    # count = 0
-    # for x in range(BLOCK_DIM):
-    #     count += cache[x + i * BLOCK_DIM]
-    # out[i] = count
-    print(out, size)
+    count = 0
+    for x in range(BLOCK_DIM):
+        count += cache[x + i * BLOCK_DIM]
+    out[i] = count
+    # print(out, size)
 
 
 jit_sum_practice = cuda.jit()(_sum_practice)
