@@ -273,6 +273,7 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
     if i < size:
         cache[pos] = a[i]
         cuda.syncthreads()
+    print(cache)
     # count = 0
     # for x in range(BLOCK_DIM):
     #     count += cache[x + i * BLOCK_DIM]
@@ -288,7 +289,7 @@ def sum_practice(a: Tensor) -> TensorData:
     threadsperblock = THREADS_PER_BLOCK
     blockspergrid = (size // THREADS_PER_BLOCK) + 1
     out = TensorData([0.0 for i in range(2)], (2,))
-    out.to_cuda_()
+    out.to_cuda_() # size of the shape / 32 + 1 blocks, 32 threads per block
     jit_sum_practice[blockspergrid, threadsperblock](
         out.tuple()[0], a._tensor._storage, size
     )
@@ -328,6 +329,8 @@ def tensor_reduce(
         pos = cuda.threadIdx.x
 
         # TODO: Implement for Task 3.3.
+        if out_pos * pos < out_size:
+            pass
         # to_index(i, out_shape, out_index)
         # o = index_to_position(out_index, out_strides)
         # j = index_to_position(out_index, a_strides)
@@ -335,7 +338,6 @@ def tensor_reduce(
         #     out_index[reduce_dim] = s
         #     out[o] = fn(out[o], a_storage[j])
         #     j += a_strides[reduce_dim]
-        pass
 
     return jit(_reduce)  # type: ignore
 
@@ -385,7 +387,7 @@ def mm_practice(a: Tensor, b: Tensor) -> TensorData:
     threadsperblock = (THREADS_PER_BLOCK, THREADS_PER_BLOCK)
     blockspergrid = 1
     out = TensorData([0.0 for i in range(size * size)], (size, size))
-    out.to_cuda_()
+    out.to_cuda_() # 1 block with 32 x 32 threads
     jit_mm_practice[blockspergrid, threadsperblock](
         out.tuple()[0], a._tensor._storage, b._tensor._storage, size
     )
