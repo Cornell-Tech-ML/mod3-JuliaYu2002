@@ -271,13 +271,13 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
     # TODO: Implement for Task 3.3.
     # print(size)
     if i < size:
-        cache[pos] = a[i]
+        cache[pos] = a[i] # move things into shared memory
         cuda.syncthreads()
-    print(cache)
     # count = 0
     # for x in range(BLOCK_DIM):
     #     count += cache[x + i * BLOCK_DIM]
     # out[i] = count
+    print(out, size)
 
 
 jit_sum_practice = cuda.jit()(_sum_practice)
@@ -329,8 +329,9 @@ def tensor_reduce(
         pos = cuda.threadIdx.x
 
         # TODO: Implement for Task 3.3.
-        if out_pos * pos < out_size:
-            pass
+        raise NotImplementedError("Need to implement for Task 3.3")
+        # if out_pos * pos < out_size:
+        #     pass
         # to_index(i, out_shape, out_index)
         # o = index_to_position(out_index, out_strides)
         # j = index_to_position(out_index, a_strides)
