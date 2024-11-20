@@ -10,6 +10,7 @@ from numba.cuda import jit as _jit
 from .tensor import Tensor
 from .tensor_data import (
     MAX_DIMS,
+    OutIndex,
     Shape,
     Storage,
     Strides,
@@ -328,21 +329,29 @@ def tensor_reduce(
         reduce_dim: int,
         reduce_value: float,
     ) -> None:
-        BLOCK_DIM = 1024
+        BLOCK_DIM = 1024 # number of total threads (divided evenly into each block)
         cache = cuda.shared.array(BLOCK_DIM, numba.float64)
         out_index = cuda.local.array(MAX_DIMS, numba.int32)
         out_pos = cuda.blockIdx.x # each block calculates one position
         pos = cuda.threadIdx.x # current thread
 
         # TODO: Implement for Task 3.3.
-        if pos < out_size:
+        if out_pos * BLOCK_DIM  + pos < a_storage.size: # fix the bounds
             to_index(out_pos, out_shape, out_index)
             j = index_to_position(out_index, a_strides)
             cache[pos] = a_storage[j]
         else:
             cache[pos] = reduce_value # have padding (0s or 1s)
         cuda.syncthreads() # get all the threads here
-
+        """
+        to_index(i, out_shape, out_index)
+            o = index_to_position(out_index, out_strides)
+            j = index_to_position(out_index, a_strides)
+            for s in range(reduce_size):
+                out_index[reduce_dim] = s
+                out[o] = fn(out[o], a_storage[j])
+                j += a_strides[reduce_dim]
+        """
         stride = 1
         while stride < BLOCK_DIM:
             if pos % (2 * stride) == 0: # adds every 2 elements together
