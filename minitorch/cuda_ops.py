@@ -338,10 +338,11 @@ def tensor_reduce(
         if pos < out_size:
             cache[pos] = a_storage[pos]
             to_index(out_pos, out_shape, out_index)
+            # o = index_to_position(out_index, out_strides)
         else:
             cache[pos] = reduce_value # have padding
-
         cuda.syncthreads() # get all the threads here
+
         stride = 1
         while stride < BLOCK_DIM:
             if pos % (2 * stride) == 0: # adds every 2 elements together
@@ -350,7 +351,7 @@ def tensor_reduce(
             stride *= 2
 
         if pos == 0:
-            out[out_index] = cache[0]
+            out[out_pos] = cache[0]
 
     return jit(_reduce)  # type: ignore
 
