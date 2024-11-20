@@ -337,7 +337,7 @@ def tensor_reduce(
         # TODO: Implement for Task 3.3.
         if pos < out_size:
             cache[pos] = a_storage[pos]
-            to_index(pos, out_shape, out_index)
+            to_index(out_pos, out_shape, out_index)
         else:
             cache[pos] = reduce_value # have padding
 
