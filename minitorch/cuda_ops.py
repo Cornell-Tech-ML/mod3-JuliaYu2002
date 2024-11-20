@@ -331,16 +331,16 @@ def tensor_reduce(
         BLOCK_DIM = 1024
         cache = cuda.shared.array(BLOCK_DIM, numba.float64)
         out_index = cuda.local.array(MAX_DIMS, numba.int32)
-        out_pos = cuda.blockIdx.x
-        pos = cuda.threadIdx.x
+        out_pos = cuda.blockIdx.x # each block calculates one position
+        pos = cuda.threadIdx.x # current thread
 
         # TODO: Implement for Task 3.3.
         if pos < out_size:
-            cache[pos] = a_storage[pos]
-            to_index(out_pos, out_shape, out_index)
-            # o = index_to_position(out_index, out_strides)
+            to_index(out_pos, a_shape, out_index)
+            j = index_to_position(out_index, a_strides)
+            cache[pos] = a_storage[j]
         else:
-            cache[pos] = reduce_value # have padding
+            cache[pos] = reduce_value # have padding (0s or 1s)
         cuda.syncthreads() # get all the threads here
 
         stride = 1
