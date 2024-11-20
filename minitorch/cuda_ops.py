@@ -1,6 +1,7 @@
 # type: ignore
 # Currently pyright doesn't support numba.cuda
 
+from functools import reduce
 from typing import Callable, Optional, TypeVar, Any
 
 import numba
@@ -268,7 +269,6 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
     pos = cuda.threadIdx.x # current thread
 
     # TODO: Implement for Task 3.3.
-    # print(size)
     if i < size:
         cache[pos] = a[i] # move things into shared memory
     else:
@@ -340,17 +340,21 @@ def tensor_reduce(
         else:
             cache[pos] = reduce_value # have padding
 
-        cuda.syncthreads()
+        cuda.syncthreads() # get all the threads here
 
-        reduce_size = a_shape[reduce_dim]
+        reduce_stride = a_shape[reduce_dim] * a_strides[reduce_dim]
         to_index(pos, out_shape, out_index)
         o = index_to_position(out_index, out_strides)
         j = index_to_position(out_index, a_strides)
-        for s in range(reduce_size):
-            out_index[reduce_dim] = s
-            out[o] = fn(out[o], cache[j])
-            j += a_strides[reduce_dim]
-        # raise NotImplementedError("Need to implement for Task 3.3")
+
+        while reduce_stride < BLOCK_DIM:
+            if pos % (2 * reduce_stride) == 0:
+                cache[pos] = fn(out[o], cache[pos + reduce_stride])
+            cuda.syncthreads()
+            reduce_stride *= 2
+
+        if pos == 0:
+            out[out_pos] = cache[0]
 
     return jit(_reduce)  # type: ignore
 
