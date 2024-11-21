@@ -333,25 +333,20 @@ def tensor_reduce(
         cache = cuda.shared.array(BLOCK_DIM, numba.float64)
         out_index = cuda.local.array(MAX_DIMS, numba.int32)
         out_pos = cuda.blockIdx.x # each block calculates one position
-        pos = cuda.threadIdx.x # current thread
+        pos = cuda.threadIdx.x # current thread in current block
 
         # TODO: Implement for Task 3.3.
-        if out_pos * BLOCK_DIM  + pos < a_storage.size: # fix the bounds
+        if pos < a_storage.size: # fix the bounds
             to_index(out_pos, out_shape, out_index)
             j = index_to_position(out_index, a_strides)
+            # j+= something related to pos
+            pos = pos + (out_pos * MAX_DIMS)
+            j += pos
             cache[pos] = a_storage[j]
         else:
             cache[pos] = reduce_value # have padding (0s or 1s)
         cuda.syncthreads() # get all the threads here
-        """
-        to_index(i, out_shape, out_index)
-            o = index_to_position(out_index, out_strides)
-            j = index_to_position(out_index, a_strides)
-            for s in range(reduce_size):
-                out_index[reduce_dim] = s
-                out[o] = fn(out[o], a_storage[j])
-                j += a_strides[reduce_dim]
-        """
+
         stride = 1
         while stride < BLOCK_DIM:
             if pos % (2 * stride) == 0: # adds every 2 elements together
