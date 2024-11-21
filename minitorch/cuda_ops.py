@@ -338,9 +338,10 @@ def tensor_reduce(
         # TODO: Implement for Task 3.3.
         if pos < a_storage.size: # fix the bounds
             to_index(out_pos, out_shape, out_index)
-            j = index_to_position(out_index, a_strides)
-            # j+= something related to pos
-            pos = pos + (out_pos * MAX_DIMS)
+            # a_shape[reduce_dim]
+            a_strides[reduce_dim] = a_shape[reduce_dim]
+            j = index_to_position(out_index, a_strides) # convert the index in the outshape to a position to be used when referencing the a_storage
+            pos += (out_pos * MAX_DIMS) # add in the amount of blocks' threads to get it to the right position
             j += pos
             cache[pos] = a_storage[j]
         else:
@@ -393,7 +394,16 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     """
     BLOCK_DIM = 32
     # TODO: Implement for Task 3.3.
-    raise NotImplementedError("Need to implement for Task 3.3")
+    cache = cuda.shared.array(BLOCK_DIM, numba.float64) # space allocated = 32
+    i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
+    pos = cuda.threadIdx.x # current thread
+
+    # TODO: Implement for Task 3.3.
+    if i < size:
+        cache[pos] = a[i]
+        cache[pos + BLOCK_DIM / 2]
+    cuda.syncthreads()
+
 
 
 jit_mm_practice = jit(_mm_practice)
