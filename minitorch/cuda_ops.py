@@ -390,8 +390,8 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     """
     BLOCK_DIM = 32
     # TODO: Implement for Task 3.4.
-    a_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64) # space allocated = 32
-    c_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64) # space allocated = 32
+    a_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float32) # space allocated = 32
+    c_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float32) # space allocated = 32
 
     # The final position c[i, j]
     i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
