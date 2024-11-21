@@ -32,6 +32,7 @@ The files that will be synced are:
         minitorch/tensor_data.py minitorch/tensor_functions.py minitorch/tensor_ops.py minitorch/operators.py minitorch/scalar.py minitorch/scalar_functions.py minitorch/module.py minitorch/autodiff.py minitorch/module.py project/run_manual.py project/run_scalar.py project/run_tensor.py minitorch/operators.py minitorch/module.py minitorch/autodiff.py minitorch/tensor.py minitorch/datasets.py minitorch/testing.py minitorch/optim.py
 
 3.1 parallel analysis script output:
+```
 MAP
 
 ================================================================================
@@ -217,8 +218,10 @@ before the loop is executed and reused inside the loop):
    Allocation:: out_index = np.empty(MAX_DIMS, np.int32)
     - numpy.empty() is used for the allocation.
 None
+```
 
 3.2 parallel analysis script output:
+```
 MATRIX MULTIPLY
 
 ================================================================================
@@ -346,3 +349,42 @@ Parallel structure is already optimal.
 Allocation hoisting:
 No allocation hoisting found
 None
+```
+
+3.4 Graph file output
+
+![Speed up Graph](./graph_timing.png)
+
+```
+Running size 64
+/usr/local/lib/python3.10/dist-packages/numba/cuda/dispatcher.py:536: NumbaPerformanceWarning: Grid size 8 will likely result in GPU under-utilization due to low occupancy.
+  warn(NumbaPerformanceWarning(msg))
+{'fast': 0.0037920475006103516, 'gpu': 0.006616910298665364}
+Running size 128
+/usr/local/lib/python3.10/dist-packages/numba/cuda/dispatcher.py:536: NumbaPerformanceWarning: Grid size 32 will likely result in GPU under-utilization due to low occupancy.
+  warn(NumbaPerformanceWarning(msg))
+{'fast': 0.01700735092163086, 'gpu': 0.015645821889241535}
+Running size 256
+{'fast': 0.09951567649841309, 'gpu': 0.0547942320505778}
+Running size 512
+{'fast': 0.9882652759552002, 'gpu': 0.2783406575520833}
+Running size 1024
+{'fast': 8.316306273142496, 'gpu': 1.0568815072377522}
+
+Timing summary
+Size: 64
+    fast: 0.00379
+    gpu: 0.00662
+Size: 128
+    fast: 0.01701
+    gpu: 0.01565
+Size: 256
+    fast: 0.09952
+    gpu: 0.05479
+Size: 512
+    fast: 0.98827
+    gpu: 0.27834
+Size: 1024
+    fast: 8.31631
+    gpu: 1.05688
+```
