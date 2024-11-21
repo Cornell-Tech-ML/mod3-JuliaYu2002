@@ -15,7 +15,8 @@ start_time = time.time()
 
 def default_log_fn(epoch, total_loss, correct, losses):
     time_elapsed = time.time() - start_time
-    print("Epoch:", epoch, " loss:", total_loss, " correct:", correct, " Time / Epoch:", time_elapsed / 500)
+    time_per_epoch = time_elapsed / (epoch + 1)
+    print("Epoch:", epoch, " loss:", total_loss, " correct:", correct, " Time elapsed:", time_elapsed, " Time / Epoch:", time_per_epoch)
 
 
 def RParam(*shape, backend):
