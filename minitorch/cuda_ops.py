@@ -338,11 +338,13 @@ def tensor_reduce(
         # TODO: Implement for Task 3.3.
         if pos < a_storage.size: # fix the bounds
             to_index(out_pos, out_shape, out_index)
-            out_index[reduce_dim] = 1
-            j = index_to_position(out_index, a_strides) # convert the index in the outshape to a position to be used when referencing the a_storage
-            pos += (out_pos * MAX_DIMS) # add in the amount of blocks' threads to get it to the right position
-            j += pos
-            cache[pos] = a_storage[j]
+            if out_index[reduce_dim] == out_shape[reduce_dim]:
+                j = index_to_position(out_index, a_strides) # convert the index in the outshape to a position to be used when referencing the a_storage
+                thing = pos + (out_pos * MAX_DIMS) # add in the amount of blocks' threads to get it to the right position
+                j += thing
+                cache[pos] = a_storage[j]
+            else:
+                cache[pos] = reduce_value
         else:
             cache[pos] = reduce_value # have padding (0s or 1s)
         cuda.syncthreads() # get all the threads here
