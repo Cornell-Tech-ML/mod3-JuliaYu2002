@@ -406,13 +406,15 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
         # from 0 to the size of the square, skipping by the threads per block, BLOCK_DIM
         # (in order to cover each part of the storage and get each dot product using a given part of the data)
         if i < size and k + pj < size: # guard against out of bounds (the column exceeding the size and the row exceeding the size)
-            a_store_cache[pi, pj] = a[i, k + pj] # place at the thread position, not the global position
-        else:
-            a_store_cache[pi, pj] = 1
+            # a_store_cache[pi, pj] = a[i, k + pj] # place at the thread position, not the global position
+            pass
+        # else:
+        #     a_store_cache[pi, pj] = 1
         if j < size and k + pi < size:
-            b_store_cache[pi, pj] = b[k + pi, j]
-        else:
-            b_store_cache[pi, pj] = 1
+            # b_store_cache[pi, pj] = b[k + pi, j]
+            pass
+        # else:
+        #     b_store_cache[pi, pj] = 1
         cuda.syncthreads() # sync pause to get everything here
 
         for loc_k in range(min(BLOCK_DIM, size - k)):
