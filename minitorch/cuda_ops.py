@@ -392,10 +392,6 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     # TODO: Implement for Task 3.4.
     a_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64) # space allocated = 32
     b_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64) # space allocated = 32
-    a_store_index = cuda.local.array(BLOCK_DIM, numba.float64)
-    b_store_index = cuda.local.array(BLOCK_DIM, numba.float64)
-    strides: Strides = [size, 1]
-    shape: Shape = [size, size]
 
     # The final position c[i, j] -> global positions of the threads
     i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
@@ -405,42 +401,16 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     pi = cuda.threadIdx.x
     pj = cuda.threadIdx.y
 
-    # if i < size and j < size:
-    #     a_cache[pi, pj] = a[i * size + j]
-    #     b_cache[pi, pj] = b[i * size + j]
-
-    #     cuda.syncthreads()
-
-    #     dot_prod = 0
-
-    #     for k in range(size):
-    #         dot_prod += a_cache[pi, k] * b_cache[k, pj]
-
-    #     out[i * size + j] = dot_prod
-
     acc = 0
     for k in range(0, size, BLOCK_DIM):
         # from 0 to the size of the square, skipping by the threads per block, BLOCK_DIM
         # (in order to cover each part of the storage and get each dot product using a given part of the data)
 
         if i < size and k + pj < size: # guard against out of bounds (the column exceeding the size and the row exceeding the size)
-            # to_index(i + k + pj, shape, a_store_index)
-            # a_dex = index_to_position(a_store_index, strides) # calculate the positioning in the storage by converting the 
+            a_cache[pi, pj] = a[i * size + j] # the location in a/b is the current overall thread address in X x the size of the block (to access the current row) and add the column's overall address
 
-            # to_index(pi * strides[0] + pj * strides[1], shape, a_store_index) # find the index of the current thread's position
-            # not pi or pj, i * strides[0] + j * strides[1], j
-            # to_index(1, shape, a_store_index)
-            # a_dex = index_to_position(a_store_index, strides) # convert the found index to a position to be used when accessing the global storage
-
-            # a_cache[pi, pj] = a[a_dex] # place at the thread positions, not the global position
-            a_cache[pi, pj] = a[i * size + j]
-
-        if j < size and k + pi < size:
-            # to_index(k + pi + j, shape, b_store_index)
-            # b_dex = index_to_position(a_store_index, strides)
-
-            # b_cache[pi, pj] = b[b_dex]
-            b_cache[pi, pj] = b[i * size + j]
+        if j < size and k + pi < size: # guard against out of bounds (row exceeding size, col exceeding the size after adding the current row/col)
+            b_cache[pi, pj] = b[j * size + i] # is the same size as a, so it should be the same accessing address
 
         cuda.syncthreads() # sync pause to get everything here
 
@@ -449,8 +419,7 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
             acc += a_cache[pi, loc_k] * b_cache[loc_k, pj] # move a across the rows, b down the column
 
     if i < size and j < size: # if i, j is within the size of the out, write the accumulation to global
-        pass
-        out[i * size + j] = acc # write into the global position of the thread
+        out[i * size + j] = acc # write into the global thread position 
 
 
 jit_mm_practice = jit(_mm_practice)
