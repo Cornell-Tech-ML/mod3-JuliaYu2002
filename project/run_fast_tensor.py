@@ -9,9 +9,11 @@ FastTensorBackend = minitorch.TensorBackend(minitorch.FastOps)
 if numba.cuda.is_available():
     GPUBackend = minitorch.TensorBackend(minitorch.CudaOps)
 
+start_time = time.time()
 
 def default_log_fn(epoch, total_loss, correct, losses):
-    print("Epoch:", epoch, " loss:", total_loss, "correct:", correct, "Time / Epoch:")
+    time_elapsed = time.time() - start_time
+    print("Epoch:", epoch, " loss:", total_loss, " correct:", correct, " Time / Epoch:", time_elapsed / 500)
 
 
 def RParam(*shape, backend):
