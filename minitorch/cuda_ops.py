@@ -36,7 +36,7 @@ def device_jit(fn: Fn, **kwargs) -> Fn:
     return _jit(device=True, **kwargs)(fn)  # type: ignore
 
 
-def jit(fn, **kwargs) -> FakeCUDAKernel:
+def jit(fn: Fn, **kwargs) -> FakeCUDAKernel:
     """Makes a jit version of a given function"""
     return _jit(**kwargs)(fn)  # type: ignore
 
@@ -336,7 +336,7 @@ def tensor_reduce(
         pos = cuda.threadIdx.x # current thread in current block
 
         # TODO: Implement for Task 3.3.
-        if pos < a_shape[reduce_dim]:
+        if pos < a_shape[reduce_dim]: # pos must be less than the reduce dim amount, since each block will just handle one reduce over a given dimension
             to_index(out_pos, out_shape, out_index)
             j = index_to_position(out_index, a_strides) # convert the index in the outshape to a position to be used when referencing the a_storage
             cache[pos] = a_storage[j + a_strides[reduce_dim] * pos]
@@ -389,17 +389,31 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
 
     """
     BLOCK_DIM = 32
-    # TODO: Implement for Task 3.3.
-    cache = cuda.shared.array(BLOCK_DIM, numba.float64) # space allocated = 32
+    # TODO: Implement for Task 3.4.
+    a_store_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64) # space allocated = 32
+    b_store_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64) # space allocated = 32
+
+    # The final position c[i, j]
     i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
-    pos = cuda.threadIdx.x # current thread
+    j = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y
 
-    # TODO: Implement for Task 3.3.
-    if i < size:
-        cache[pos] = a[i]
-        cache[pos + BLOCK_DIM / 2]
-    cuda.syncthreads()
+    # The local position in the block.
+    pi = cuda.threadIdx.x
+    pj = cuda.threadIdx.y
 
+    acc = 0
+    for k in range(0, size, BLOCK_DIM):
+        if i < size and k + pj < size:
+            a_store_cache[pi, pj] = a[i, k + pj]
+        if j < size and k + pi < size:
+            b_store_cache[pi, pj] = b[k + pi, j]
+        cuda.syncthreads()
+
+        for loc_k in range(min(BLOCK_DIM, size - k)):
+            acc += a_store_cache[pi, loc_k] * b_store_cache[loc_k, pj]
+
+    if i < size and j < size:
+        out[i, j] = acc
 
 
 jit_mm_practice = jit(_mm_practice)
@@ -446,12 +460,14 @@ def _tensor_matrix_multiply(
     Returns:
         None : Fills in `out`
     """
+    # gets the number of storage spaces need to move a layer deeper
     a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0
     b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
     # Batch dimension - fixed
     batch = cuda.blockIdx.z
 
     BLOCK_DIM = 32
+    # make the shared arrays to move the storages into
     a_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
     b_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
 
@@ -469,7 +485,20 @@ def _tensor_matrix_multiply(
     #    b) Copy into shared memory for b matrix
     #    c) Compute the dot produce for position c[i, j]
     # TODO: Implement for Task 3.4.
-    raise NotImplementedError("Need to implement for Task 3.4")
+    # fill in the shared buffers at their current thread position in their block
+    acc = 0
+    for k in range(0, out_size, BLOCK_DIM):
+        if i < out_size and k + pj < out_size:
+            a_shared[pi, pj] = a_storage[i, k + pj]
+        if j < out_size and k + pi < out_size:
+            b_shared[pi, pj] = b_storage[k + pi, j]
+        cuda.syncthreads()
+
+        for loc_k in range(min(BLOCK_DIM, out_size - k)):
+            acc += a_shared[pi, loc_k] * b_shared[loc_k, pj]
+
+    if i < out_size and j < out_size:
+        out[i, j] = acc
 
 
 tensor_matrix_multiply = jit(_tensor_matrix_multiply)
