@@ -411,12 +411,16 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
 
         if i < size and k + local_j < size: # guard against out of bounds (the column exceeding the size and the row exceeding the size)
             to_index(i + k + local_j, shape, a_store_index)
-            a_dex = index_to_position(a_store_index, strides)
-            a_cache[local_i, local_j] = a[a_dex] # place at the thread position, not the global position
+            a_dex = index_to_position(a_store_index, strides) # calculate the positioning in the storage by converting the 
+
+            # a_cache[local_i, local_j] = a[a_dex] # place at the thread positions, not the global position
+            a_cache[local_i, local_j] = a[1]
         if j < size and k + local_i < size:
             to_index(k + local_i + j, shape, b_store_index)
             b_dex = index_to_position(a_store_index, strides)
-            b_cache[local_i, local_j] = b[b_dex]
+
+            # b_cache[local_i, local_j] = b[b_dex]
+            b_cache[local_i, local_j] = b[1]
         cuda.syncthreads() # sync pause to get everything here
 
         for loc_k in range(min(BLOCK_DIM, size - k)):
