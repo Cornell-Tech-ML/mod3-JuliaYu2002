@@ -42,7 +42,7 @@ C:\Users\rubyj\Documents\Cornell_Tech\MLE\mod3-JuliaYu2002\minitorch\fast_ops.py
 
 
 Parallel loop listing for  Function tensor_map.<locals>._map, C:\Users\rubyj\Documents\Cornell_Tech\MLE\mod3-JuliaYu2002\minitorch\fast_ops.py (166)
-------------------------------------------------------------------------------------------------------------------------------------------------------------|loop #ID      
+------------------------------------------------------------------------------------------------------------------------------------------------------------|loop #ID
     def _map(                                                                                                                                               |
         out: Storage,                                                                                                                                       |
         out_shape: Shape,                                                                                                                                   |
@@ -93,7 +93,7 @@ buffers
     - numpy.empty() is used for the allocation.
 None
 ZIP
- 
+
 ================================================================================
  Parallel Accelerator Optimizing:  Function tensor_zip.<locals>._zip,
 C:\Users\rubyj\Documents\Cornell_Tech\MLE\mod3-JuliaYu2002\minitorch\fast_ops.py
@@ -166,7 +166,7 @@ before the loop is executed and reused inside the loop):
     - numpy.empty() is used for the allocation.
 None
 REDUCE
- 
+
 ================================================================================
  Parallel Accelerator Optimizing:  Function tensor_reduce.<locals>._reduce,
 C:\Users\rubyj\Documents\Cornell_Tech\MLE\mod3-JuliaYu2002\minitorch\fast_ops.py
@@ -220,7 +220,7 @@ None
 
 3.2 parallel analysis script output:
 MATRIX MULTIPLY
- 
+
 ================================================================================
  Parallel Accelerator Optimizing:  Function _tensor_matrix_multiply,
 C:\Users\rubyj\Documents\Cornell_Tech\MLE\mod3-JuliaYu2002\minitorch\fast_ops.py
