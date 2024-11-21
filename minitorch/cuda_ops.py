@@ -422,7 +422,8 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
             acc += a_store_cache[pi, loc_k] * b_store_cache[loc_k, pj] # move a across the rows, b down the column
 
     if i < size and j < size: # if i, j is within the size of the out, write the accumulation to global
-        out[i, j] = acc
+        # out[i, j] = acc
+        pass
 
 
 jit_mm_practice = jit(_mm_practice)
