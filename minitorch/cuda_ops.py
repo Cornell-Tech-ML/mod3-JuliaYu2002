@@ -429,18 +429,18 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
 
             # to_index(pi * strides[0] + pj * strides[1], shape, a_store_index) # find the index of the current thread's position
             # not pi or pj, i * strides[0] + j * strides[1], j
-            to_index(1, shape, a_store_index)
-            a_dex = index_to_position(a_store_index, strides) # convert the found index to a position to be used when accessing the global storage
+            # to_index(1, shape, a_store_index)
+            # a_dex = index_to_position(a_store_index, strides) # convert the found index to a position to be used when accessing the global storage
 
             # a_cache[pi, pj] = a[a_dex] # place at the thread positions, not the global position
-            a_cache[pi, pj] = a[1]
+            a_cache[pi, pj] = a[i * size + j]
 
         if j < size and k + pi < size:
             # to_index(k + pi + j, shape, b_store_index)
             # b_dex = index_to_position(a_store_index, strides)
 
             # b_cache[pi, pj] = b[b_dex]
-            b_cache[pi, pj] = b[1]
+            b_cache[pi, pj] = b[i * size + j]
 
         cuda.syncthreads() # sync pause to get everything here
 
@@ -450,7 +450,7 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
 
     if i < size and j < size: # if i, j is within the size of the out, write the accumulation to global
         pass
-        out[i, j] = acc # write into the global position of the thread
+        out[i * size + j] = acc # write into the global position of the thread
 
 
 jit_mm_practice = jit(_mm_practice)
