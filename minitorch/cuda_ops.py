@@ -407,8 +407,12 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
         # (in order to cover each part of the storage and get each dot product using a given part of the data)
         if i < size and k + pj < size: # guard against out of bounds (the column exceeding the size and the row exceeding the size)
             a_store_cache[pi, pj] = a[i, k + pj] # place at the thread position, not the global position
+        else:
+            a_store_cache[pi, pj] = 1
         if j < size and k + pi < size:
             b_store_cache[pi, pj] = b[k + pi, j]
+        else:
+            b_store_cache[pi, pj] = 1
         cuda.syncthreads() # sync pause to get everything here
 
         for loc_k in range(min(BLOCK_DIM, size - k)):
@@ -467,7 +471,7 @@ def _tensor_matrix_multiply(
     a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0
     b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
     # Batch dimension - fixed
-    batch = cuda.blockIdx.z
+    batch = cuda.blockIdx.z # the depth of the current layer
 
     BLOCK_DIM = 32
     # make the shared arrays to move the storages into
