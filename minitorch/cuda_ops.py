@@ -414,7 +414,8 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
             # to_index(i + k + local_j, shape, a_store_index)
             # a_dex = index_to_position(a_store_index, strides) # calculate the positioning in the storage by converting the 
 
-            to_index(local_i * strides[0] + local_j * strides[1], shape, a_store_index) # find the index of the current thread's position
+            # to_index(local_i * strides[0] + local_j * strides[1], shape, a_store_index) # find the index of the current thread's position
+            to_index(local_i, shape, a_store_index)
             a_dex = index_to_position(a_store_index, strides) # convert the found index to a position to be used when accessing the global storage
 
             a_cache[local_i, local_j] = a[a_dex] # place at the thread positions, not the global position
