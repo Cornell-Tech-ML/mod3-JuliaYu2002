@@ -410,14 +410,14 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
         # (in order to cover each part of the storage and get each dot product using a given part of the data)
 
         if i < size and k + local_j < size: # guard against out of bounds (the column exceeding the size and the row exceeding the size)
-            to_index(i + k + local_j, shape, a_store_index)
-            a_dex = index_to_position(a_store_index, strides) # calculate the positioning in the storage by converting the 
+            # to_index(i + k + local_j, shape, a_store_index)
+            # a_dex = index_to_position(a_store_index, strides) # calculate the positioning in the storage by converting the 
 
             # a_cache[local_i, local_j] = a[a_dex] # place at the thread positions, not the global position
             a_cache[local_i, local_j] = a[1]
         if j < size and k + local_i < size:
-            to_index(k + local_i + j, shape, b_store_index)
-            b_dex = index_to_position(a_store_index, strides)
+            # to_index(k + local_i + j, shape, b_store_index)
+            # b_dex = index_to_position(a_store_index, strides)
 
             # b_cache[local_i, local_j] = b[b_dex]
             b_cache[local_i, local_j] = b[1]
