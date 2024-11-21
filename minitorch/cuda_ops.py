@@ -390,40 +390,33 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     """
     BLOCK_DIM = 32
     # TODO: Implement for Task 3.4.
-    a_store_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64) # space allocated = 32
-    b_store_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64) # space allocated = 32
+    a_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64) # space allocated = 32
+    c_cache = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64) # space allocated = 32
 
     # The final position c[i, j]
     i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
     j = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y
 
     # The local position in the block.
-    pi = cuda.threadIdx.x
-    pj = cuda.threadIdx.y
+    local_i = cuda.threadIdx.x
+    local_j = cuda.threadIdx.y
 
     acc = 0
     for k in range(0, size, BLOCK_DIM):
         # from 0 to the size of the square, skipping by the threads per block, BLOCK_DIM
         # (in order to cover each part of the storage and get each dot product using a given part of the data)
-        if i < size and k + pj < size: # guard against out of bounds (the column exceeding the size and the row exceeding the size)
-            # a_store_cache[pi, pj] = a[i, k + pj] # place at the thread position, not the global position
-            pass
-        # else:
-        #     a_store_cache[pi, pj] = 1
-        if j < size and k + pi < size:
-            # b_store_cache[pi, pj] = b[k + pi, j]
-            pass
-        # else:
-        #     b_store_cache[pi, pj] = 1
+        if i < size and k + local_j < size: # guard against out of bounds (the column exceeding the size and the row exceeding the size)
+            a_cache[local_i, local_j] = a[i, k + local_j] # place at the thread position, not the global position
+        if j < size and k + local_i < size:
+            c_cache[local_i, local_j] = b[k + local_i, j]
         cuda.syncthreads() # sync pause to get everything here
 
         for loc_k in range(min(BLOCK_DIM, size - k)):
             # loop through the smaller of the 2 values (BLOCK_DIM or size - k, representing the amount of numbers to dot product together in terms of dimension)
-            acc += a_store_cache[pi, loc_k] * b_store_cache[loc_k, pj] # move a across the rows, b down the column
+            acc += a_cache[local_i, loc_k] * c_cache[loc_k, local_j] # move a across the rows, b down the column
 
     if i < size and j < size: # if i, j is within the size of the out, write the accumulation to global
-        # out[i, j] = acc
-        pass
+        out[i, j] = acc # write into the global position of the thread
 
 
 jit_mm_practice = jit(_mm_practice)
