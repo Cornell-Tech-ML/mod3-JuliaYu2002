@@ -338,8 +338,7 @@ def tensor_reduce(
         # TODO: Implement for Task 3.3.
         if pos < a_storage.size: # fix the bounds
             to_index(out_pos, out_shape, out_index)
-            # a_shape[reduce_dim]
-            a_strides[reduce_dim] = a_shape[reduce_dim]
+            out_index[reduce_dim] = 1
             j = index_to_position(out_index, a_strides) # convert the index in the outshape to a position to be used when referencing the a_storage
             pos += (out_pos * MAX_DIMS) # add in the amount of blocks' threads to get it to the right position
             j += pos
