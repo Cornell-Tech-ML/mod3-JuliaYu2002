@@ -410,7 +410,7 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
             a_cache[pi, pj] = a[i * size + j] # the location in a/b is the current overall thread address in X x the size of the block (to access the current row) and add the column's overall address
 
         if j < size and k + pi < size: # guard against out of bounds (row exceeding size, col exceeding the size after adding the current row/col)
-            b_cache[pi, pj] = b[j * size + i] # is the same size as a, so it should be the same accessing address
+            b_cache[pi, pj] = b[i * size + j] # is the same size as a, so it should be the same accessing address
 
         cuda.syncthreads() # sync pause to get everything here
 
@@ -491,7 +491,43 @@ def _tensor_matrix_multiply(
     #    b) Copy into shared memory for b matrix
     #    c) Compute the dot produce for position c[i, j]
     # TODO: Implement for Task 3.4.
+
     # fill in the shared buffers at their current thread position in their block
+    MAX_BLOCKS = a_shape[2]
+    temp = 0
+
+    # move across shared dimension by block dim
+    for x in range(0, MAX_BLOCKS, MAX_DIMS):
+        pi_x = pi + x  # local index for threadIdX
+        pj_x = pj + x  # local index for threadIdY
+
+        # copy into shared memory for A matrix
+        if i < a_shape[1] and pj_x < MAX_BLOCKS:
+            # get position from A storage
+            a_pos = a_batch_stride * batch + a_strides[1] * i + a_strides[2] * pj_x
+            # copy into shared A memory
+            a_shared[pi, pj] = a_storage[a_pos]
+
+        # copy into shared memory for B matrix
+        if pi_x < b_shape[1] and j < b_shape[2]:
+            # get position from B storage
+            b_pos = b_batch_stride * batch + b_strides[1] * pi_x + b_strides[2] * j
+            # copy into shared B memory
+            b_shared[pi, pj] = b_storage[b_pos]
+
+        cuda.syncthreads()
+
+        # get dot product and sum over respective row and column from A and B
+        for y in range(BLOCK_DIM):
+            if (x + y) < MAX_BLOCKS:
+                temp += a_shared[pi, y] * b_shared[y, pj]
+
+    # compute the dot produce for position c[i, j]
+    if i < out_shape[1] and j < out_shape[2]:
+        # get position to save at in out array
+        out_pos = out_strides[0] * batch + out_strides[1] * i + out_strides[2] * j
+        # copy into out storage
+        out[out_pos] = temp
     # acc = 0
     # for k in range(0, out_size, BLOCK_DIM):
     #     if i < out_size and k + pj < out_size:
@@ -501,11 +537,12 @@ def _tensor_matrix_multiply(
     #     cuda.syncthreads()
 
     #     for loc_k in range(min(BLOCK_DIM, out_size - k)):
-    #         acc += a_shared[pi, loc_k] * b_shared[loc_k, pj]
+    #         acc += a_shared[batch * a_batch_stride + k *] * b_shared[]
+            # acc += a_shared[pi, loc_k] * b_shared[loc_k, pj]
 
     # if i < out_size and j < out_size:
-    #     out[i, j] = acc
-    pass
+    #     out[batch] = acc
+    
 
 
 tensor_matrix_multiply = jit(_tensor_matrix_multiply)
