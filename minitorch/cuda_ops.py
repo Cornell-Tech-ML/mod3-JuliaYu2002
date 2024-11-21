@@ -396,7 +396,8 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     b_store_index = cuda.local.array(BLOCK_DIM, numba.float64)
     strides: Strides = [size, 1]
     shape: Shape = [size, size]
-    # The final position c[i, j]
+
+    # The final position c[i, j] -> global positions of the threads
     i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
     j = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y
 
@@ -413,22 +414,28 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
             # to_index(i + k + local_j, shape, a_store_index)
             # a_dex = index_to_position(a_store_index, strides) # calculate the positioning in the storage by converting the 
 
-            # a_cache[local_i, local_j] = a[a_dex] # place at the thread positions, not the global position
-            a_cache[local_i, local_j] = a[1]
+            to_index(local_i * strides[0] + local_j * strides[1], shape, a_store_index) # find the index of the current thread's position
+            a_dex = index_to_position(a_store_index, strides) # convert the found index to a position to be used when accessing the global storage
+
+            a_cache[local_i, local_j] = a[a_dex] # place at the thread positions, not the global position
+            # a_cache[local_i, local_j] = a[1]
+
         if j < size and k + local_i < size:
             # to_index(k + local_i + j, shape, b_store_index)
             # b_dex = index_to_position(a_store_index, strides)
 
             # b_cache[local_i, local_j] = b[b_dex]
             b_cache[local_i, local_j] = b[1]
+
         cuda.syncthreads() # sync pause to get everything here
 
         for loc_k in range(min(BLOCK_DIM, size - k)):
             # loop through the smaller of the 2 values (BLOCK_DIM or size - k, representing the amount of numbers to dot product together in terms of dimension)
             acc += a_cache[local_i, loc_k] * b_cache[loc_k, local_j] # move a across the rows, b down the column
 
-    # if i < size and j < size: # if i, j is within the size of the out, write the accumulation to global
-    #     out[i, j] = acc # write into the global position of the thread
+    if i < size and j < size: # if i, j is within the size of the out, write the accumulation to global
+        pass
+        # out[i, j] = acc # write into the global position of the thread
 
 
 jit_mm_practice = jit(_mm_practice)
@@ -501,19 +508,20 @@ def _tensor_matrix_multiply(
     #    c) Compute the dot produce for position c[i, j]
     # TODO: Implement for Task 3.4.
     # fill in the shared buffers at their current thread position in their block
-    acc = 0
-    for k in range(0, out_size, BLOCK_DIM):
-        if i < out_size and k + pj < out_size:
-            a_shared[pi, pj] = a_storage[i, k + pj]
-        if j < out_size and k + pi < out_size:
-            b_shared[pi, pj] = b_storage[k + pi, j]
-        cuda.syncthreads()
+    # acc = 0
+    # for k in range(0, out_size, BLOCK_DIM):
+    #     if i < out_size and k + pj < out_size:
+    #         a_shared[pi, pj] = a_storage[i, k + pj]
+    #     if j < out_size and k + pi < out_size:
+    #         b_shared[pi, pj] = b_storage[k + pi, j]
+    #     cuda.syncthreads()
 
-        for loc_k in range(min(BLOCK_DIM, out_size - k)):
-            acc += a_shared[pi, loc_k] * b_shared[loc_k, pj]
+    #     for loc_k in range(min(BLOCK_DIM, out_size - k)):
+    #         acc += a_shared[pi, loc_k] * b_shared[loc_k, pj]
 
-    if i < out_size and j < out_size:
-        out[i, j] = acc
+    # if i < out_size and j < out_size:
+    #     out[i, j] = acc
+    pass
 
 
 tensor_matrix_multiply = jit(_tensor_matrix_multiply)
