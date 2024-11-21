@@ -402,7 +402,7 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     pj = cuda.threadIdx.y
 
     acc = 0
-    for k in range(0, size, BLOCK_DIM):
+    for k in range(0, BLOCK_DIM, size):
         if i < size and k + pj < size:
             a_store_cache[pi, pj] = a[i, k + pj]
         if j < size and k + pi < size:
