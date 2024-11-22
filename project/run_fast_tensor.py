@@ -15,7 +15,10 @@ start_time = time.time()
 
 def default_log_fn(epoch, total_loss, correct, losses):
     time_elapsed = time.time() - start_time
-    time_per_epoch = time_elapsed / (epoch + 1)
+    time_per_epoch = time_elapsed / 10
+    if epoch == 0:
+        time_per_epoch = 0
+        time_elapsed = 0
     print("Epoch:", epoch, " loss:", total_loss, " correct:", correct, " Time elapsed:", time_elapsed, " Time / Epoch:", time_per_epoch)
 
 
