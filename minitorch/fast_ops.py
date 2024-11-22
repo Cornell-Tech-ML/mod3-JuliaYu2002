@@ -30,9 +30,11 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """Converts the function passed in, along with any arguments given, into a jit function"""
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
+# create jit'ed versions of the previous tensor functions
 to_index = njit(to_index)
 index_to_position = njit(index_to_position)
 broadcast_index = njit(broadcast_index)
@@ -115,7 +117,9 @@ class FastOps(TensorOps):
         # Make these always be a 3 dimensional multiply
         both_2d = 0
         if len(a.shape) == 2:
-            a = a.contiguous().view(1, a.shape[0], a.shape[1])
+            a = a.contiguous().view(
+                1, a.shape[0], a.shape[1]
+            )  # make continuous in memory and reshape dims to be 1, a.shape[0], a.shape[1]
             both_2d += 1
         if len(b.shape) == 2:
             b = b.contiguous().view(1, b.shape[0], b.shape[1])
@@ -169,7 +173,28 @@ def tensor_map(
         in_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        x = np.array_equal(in_strides, out_strides) and np.array_equal(
+            in_shape, out_shape
+        )
+        for i in prange(len(out)):
+            out_index: Index = np.empty(MAX_DIMS, np.int32)
+            in_index: Index = np.empty(
+                MAX_DIMS, np.int32
+            )  # these are the numpy buffers
+            if x:  # strides and shape aligned
+                out[i] = fn(in_storage[i])  # save value
+            else:
+                to_index(
+                    i, out_shape, out_index
+                )  # get index of the i of the thread we're in (prange makes as many threads as indicated by the param)
+                broadcast_index(
+                    out_index, out_shape, in_shape, in_index
+                )  # convert the index in the out shape into the equivalent index in the in shape
+                o = index_to_position(
+                    out_index, out_strides
+                )  # get the storage indices in the respective tensors
+                j = index_to_position(in_index, in_strides)
+                out[o] = fn(in_storage[j])  # save value
 
     return njit(_map, parallel=True)  # type: ignore
 
@@ -209,7 +234,30 @@ def tensor_zip(
         b_strides: Strides,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        x = (
+            np.array_equal(a_strides, b_strides)
+            and np.array_equal(a_strides, out_strides)
+            and np.array_equal(b_strides, out_strides)
+            and np.array_equal(a_shape, b_shape)
+            and np.array_equal(a_shape, out_shape)
+            and np.array_equal(b_shape, out_shape)
+        )
+        for i in prange(len(out)):
+            out_index: Index = np.empty(MAX_DIMS, np.int32)
+            a_index: Index = np.empty(MAX_DIMS, np.int32)
+            b_index: Index = np.empty(MAX_DIMS, np.int32)
+            if x:
+                out[i] = fn(
+                    a_storage[i], b_storage[i]
+                )  # if aligned, directly fill in out at i
+            else:
+                to_index(i, out_shape, out_index)
+                o = index_to_position(out_index, out_strides)
+                broadcast_index(out_index, out_shape, a_shape, a_index)
+                j = index_to_position(a_index, a_strides)
+                broadcast_index(out_index, out_shape, b_shape, b_index)
+                k = index_to_position(b_index, b_strides)
+                out[o] = fn(a_storage[j], b_storage[k])
 
     return njit(_zip, parallel=True)  # type: ignore
 
@@ -245,7 +293,16 @@ def tensor_reduce(
         reduce_dim: int,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        reduce_size = a_shape[reduce_dim]
+        for i in prange(len(out)):
+            out_index: Index = np.empty(MAX_DIMS, np.int32)
+            to_index(i, out_shape, out_index)
+            o = index_to_position(out_index, out_strides)
+            j = index_to_position(out_index, a_strides)
+            for s in range(reduce_size):
+                out_index[reduce_dim] = s
+                out[o] = fn(out[o], a_storage[j])
+                j += a_strides[reduce_dim]
 
     return njit(_reduce, parallel=True)  # type: ignore
 
@@ -293,11 +350,33 @@ def _tensor_matrix_multiply(
         None : Fills in `out`
 
     """
-    a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0
-    b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
-
+    a_batch_stride = (
+        a_strides[0] if a_shape[0] > 1 else 0
+    )  # if the tensor was already a 3d tensor before view adjustment
+    b_batch_stride = (
+        b_strides[0] if b_shape[0] > 1 else 0
+    )  # the number to get to the next depth in storage
     # TODO: Implement for Task 3.2.
-    raise NotImplementedError("Need to implement for Task 3.2")
+    for out_pos in prange(len(out)):
+        batch_idx = (out_pos // out_strides[0]) % out_shape[0]  # this is from chatgpt
+        row_idx = (out_pos // out_strides[1]) % out_shape[1]
+        col_idx = (out_pos // out_strides[2]) % out_shape[2]
+        # ..., depth, row, col
+        dot_prod = 0  # accumulator
+        for k in range(a_shape[-1]):  # Shared dimension (the col of A and the row of B)
+            a_idx = (
+                batch_idx * a_batch_stride + row_idx * a_strides[-2] + k * a_strides[-1]
+            )
+            # needs the current depth * the number of units to move to get there
+            # the row that the current index is in * the stride to get to the next layer
+            # the column/row and the strides to get there
+            b_idx = (
+                batch_idx * b_batch_stride + k * b_strides[-2] + col_idx * b_strides[-1]
+            )
+            dot_prod += a_storage[a_idx] * b_storage[b_idx]  # accumulate
+
+        # Write to output storage
+        out[out_pos] = dot_prod
 
 
 tensor_matrix_multiply = njit(_tensor_matrix_multiply, parallel=True)
