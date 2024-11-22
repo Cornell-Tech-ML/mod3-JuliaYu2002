@@ -12,10 +12,6 @@ if numba.cuda.is_available():
     GPUBackend = minitorch.TensorBackend(minitorch.CudaOps)
 
 def default_log_fn(epoch, total_loss, correct, losses, time_per_epoch):
-    # time_elapsed = time.time() - start_time
-    # time_per_epoch = time_elapsed / (epoch + 1)
-    # if epoch == 0:
-    #     time_per_epoch = 0.0
     print("Epoch:", epoch, " loss:", total_loss, " correct:", correct, " Time / Epoch:", time_per_epoch)
 
 
